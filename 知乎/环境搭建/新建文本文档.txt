@@ -1,0 +1,666 @@
+写文章
+https://zhuanlan.zhihu.com/p/35178331
+
+VS Code 搭建 C/C++ 编译运行环境的三种方案
+ctuu
+ctuu
+学生
+?关注他
+243 人赞同了该文章
+2018.10.31：更新 launch.json 描述以适配 cpptool 0.20.0
+
+10月29日更新的 C/C++ 插件 0.20.0 版本中，Windows 和 Linux 用户的F5 默认在集成终端（VS Code 自带的终端） 中运行，只需将 launch.json中一行代码去掉即可
+
+"externalConsole": true, // 去掉即可在集成终端中运行
+
+
+2018.10.10：更新 tasks.json 描述以适配 v1.28，更新方案一的描述
+
+2018.9.22：补全键位绑定相关描述，优化排版
+
+2018.9.15：大幅简化 IntelliSense 设置
+
+0. 环境配置
+首先安装好 GCC 并配好环境变量，
+
+Windows 推荐 MinGW-w64。具体安装及配置环境变量教程可以自行百度，不再赘述。
+
+《⑨也懂系列：MinGW-w64安装教程》著名C/C++编译器GCC的Windows版本 | rsreland.Studio
+?
+rsreland.net
+图标
+列一下需要的 VS Code 插件：
+
+C/C++ - Visual Studio Marketplace
+Code Runner - Visual Studio Marketplace
+
+
+1. IntelliSense（即编辑 c_cpp_properties.json）
+在 2018年5月8日，cpptool 更新到 0.17.0 版本，至此 c_cpp_properties.json 文件再无编辑必要。撒花~
+
+可以把 c_cpp_properties.json 删了！
+
+可以把 c_cpp_properties.json 删了！
+
+可以把 c_cpp_properties.json 删了！
+
+如果 Windows 电脑同时安装了 MinGW x64 及 WSL , IntelliSense 会默认使用 WSL。
+
+默认的 c_cpp_properties.json 会把intelliSenseMode 设成 clang-x64 ，如有需要可以改成 gcc-x64（0.18.0 提供）
+
+
+
+关于 c_cpp_properties.json 的设置可以看
+
+Microsoft/vscode-cpptools
+?
+github.com
+图标
+准备工作就绪，接下来写三种方案。
+
+方案一
+一句话介绍：使用 Code-Runner 插件链接到 Integrated Terminal 运行。
+
+特点：
+
+随时， 随地。
+便捷，可运行多种语言。
+在终端运行时遇到过多输入会溢出到程序外。
+
+
+在用户设置页（user setting）按图配置，本来没勾的勾上有勾的取消。。：
+
+
+各选项的说明如下：
+
+"code-runner.runInTerminal": true, //在内置终端运行
+"code-runner.saveFileBeforeRun": true, //运行前保存
+"code-runner.clearPreviousOutput": true, //运行前清除之前输出
+"code-runner.executorMap": { //调参
+    "c": "cd $dirWithoutTrailingSlash && gcc $fileName -o $fileNameWithoutExt -std=c11 -lm&& ./$fileNameWithoutExt",
+    "cpp": "cd $dirWithoutTrailingSlash && g++ -Wall $fileName -o $fileNameWithoutExt -std=c++11 -lm && ./$fileNameWithoutExt"
+},
+"code-runner.preserveFocus": false, //运行时焦点不会跳回编辑器
+"code-runner.ignoreSelection": true, //忽略选择部分运行
+
+
+"code-runner.executorMap"可以根据需求任意调配，例如改成
+
+"c": "cd $dirWithoutTrailingSlash && gcc $fileName -o $fileNameWithoutExt -std=c11 -lm && echo '[Running]' && ./$fileNameWithoutExt",
+"cpp": "cd $dirWithoutTrailingSlash && g++ -Wall $fileName -o $fileNameWithoutExt -std=c++11 -lm && echo '[Running]' && ./$fileNameWithoutExt"
+在程序运行时会输出 [Running] 给予提示（当然也可以根据 Shell 的语法改成有颜色的提示……）：
+
+
+Code Runner 默认运行代码的快捷键为ctrl+alt+n。
+
+
+
+效果：
+
+
+
+
+
+
+方案二
+一句话介绍：使用 VS Code 优秀的 Tasks 功能启用编译运行命令。
+
+特点
+
+优雅，黑箱特性输入不会溢出。
+
+
+用VS Code 新建个 tasks.json，用以下内容替换：
+
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "command": "g++",
+            "args": [
+                "-g",
+                "-Wall",
+                "-std=c++11",
+                "-lm",
+                "${file}",
+                "-o",
+                "${fileDirname}/${fileBasenameNoExtension}.o"
+            ],
+            "windows": {
+                "args": [
+                    "-g",
+                    "-Wall",
+                    "-std=c++11",
+                    "-lm",
+                    "${file}",
+                    "-o",
+                    "${fileDirname}/${fileBasenameNoExtension}.exe"
+                ]
+            },
+            "presentation": {
+                "reveal": "always",
+                "echo": false,
+                "focus": true
+            },
+            "problemMatcher": {
+                "owner": "cpp",
+                "fileLocation": "absolute",
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "Run",
+            "type": "shell",
+            "dependsOn": "Build",
+            "command": "${fileDirname}/${fileBasenameNoExtension}.o",
+            "windows": {
+                "command": "${fileDirname}/${fileBasenameNoExtension}.exe"
+            },
+            "args": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": true
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        }
+    ]
+}
+这个json里写了两个配置，一个Build，一个Run。
+
+先说Build配置的具体内容：
+
+"command" 选编译器用的。写 C++ 就填 G++ ，写C就填 GCC ，当然用 Clang 就填 Clang 什么的。
+"args" 编译参数。
+像是${fileDirname}和 ${fileBasenameNoExtension}什么的是VS Code的预定义变量，详见 Variables Reference。
+"presentation"详见 Tasks - Output behavior 。
+"reveal" 控制内置终端面板是否跳出到前端。
+"focus" 焦点是否跳到面板。
+"echo"控制执行的命令是否输出。
+"problemMatcher"就 C 语言来说，功能是将编译器输出的错误捕捉到VS Code的 Problem Panel 上，这个面板上的错误并不会及时更新= =，每编译一次就更新一次。详见 Tasks - problem-matchers。
+再说 Run 配置：
+
+"dependsOn"先运行哪个任务，这里就是先运行 Build 任务（先编译后运行）。
+"group"设置组，这里设置为默认的test组。详见 Tasks - custom-tasks。
+键位绑定
+到窗口左下角点齿轮再点 「键盘快捷方式」
+
+
+找到 「Run Test」 命令，编辑绑定按键，我习惯设成F10 。
+
+
+或者点开上图输入框下的keybinding.json配置：
+
+{
+    "key": "f10",
+    "command": "workbench.action.tasks.test"
+} 
+这时一按设定的键就能运行 Test 任务 。
+
+
+
+效果：
+
+
+
+
+关于输入溢出
+当输入过多数据时，Code Runner 可能会溢出输入到终端。
+
+例如在源代码如下的这个程序
+
+#include <iostream>
+using namespace std;
+int main()
+{
+    ios_base::sync_with_stdio(0);
+    cin.tie(0);
+    string a;
+    cin >> a;
+    cout << a << " Hello World" << endl;
+    return 0;
+}
+输入
+
+hello
+world
+显然只有第一行的hello是有效的。
+
+下面显示了方案一和方案二的差异：
+
+使用 Code Runner
+
+使用 Task
+
+
+
+方案三
+一句话介绍：使用GDB调试运行。
+
+特点：
+
+可调断点
+需要用到方案二的 tasks.json
+关于 Debugging 详见 Debugging。
+
+在 2018年10月29日 C/C++ 插件更新后， Windows 和 Linux F5 可以调用集成终端运行程序。
+
+这个方案从时间来看是最早的方案，其实网上很多人都说的很详细了。
+
+比如：
+
+【VSCode】Windows下VSCode编译调试c/c++【更新 2018.03.27】 - CSDN博客
+?
+blog.csdn.net
+图标
+整理：Visual Studio Code (vscode) 配置C、C++环境/编写运行C、C++（Windows）
+?
+blog.csdn.net
+图标
+就像诸多配置所说，将如下配置丢进launch.json文件里。
+
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/${fileBasenameNoExtension}.o",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            //"externalConsole": true,
+            "MIMode": "gdb",
+            "windows": {
+                "program": "${fileDirname}/${fileBasenameNoExtension}.exe",
+                "miDebuggerPath": "C:/Program Files/mingw-w64/mingw64/bin/gdb.exe"
+            },
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build"
+        }
+    ]
+
+} 
+配置简要说明：
+
+Windows 用户注意"windows":下的 "miDebuggerPath"。要将其中的路径改为本机的GDB路径。这个东西一般在MinGW-w64的安装路径下。
+"preLaunchTask" 运行调试前先运行某个任务，这个Build任务就是方案二里的那个。
+VS Code 默认是按F5启动调试任务。
+
+
+
+效果（对这个黑框会自动最小化= =）：
+
+
+
+
+写 acm 的代码感觉方案二最爽了。
+
+三种方案互不冲突，可以根据需求使用。
+
+比如：
+
+GDB调断点
+Code Runner 用来定位文件路径重定向输入输出对拍
+Tasks纯粹编译运行。
+
+
+以上。
+
+
+
+ps: 某些系统（如 Archlinux）使用代码格式化功能时会报错，这时进设置手动指定"C_Cpp.clang_format_path" 路径就好了，比如
+
+"C_Cpp.clang_format_path": "/usr/bin/clang-format"
+编辑于 2018-10-31
+Visual Studio Code
+ACM 竞赛
+C / C++
+?赞同 243?
+?57 条评论
+?分享
+?收藏
+?
+
+赞同 243
+
+?
+分享
+推荐阅读
+使用 Visual Studio Code 搭建 C/C++ 开发和调试环境
+使用 Visual Studio Code 搭建 C/C++ 开发和调试环境
+Jason
+VS Code（Win）下搭建c/c++编译运行环境
+VS Code（Win）下搭建c/c++编译运行环境
+Baisha-Geek
+别把VS Code不当IDE！
+别把VS Code不当IDE！
+陈龙
+无废话--Mac OS, VS Code 搭建c/c++基本开发环境
+无废话--Mac OS, VS Code 搭建c/c++基本开发环境
+玄魂工作室...
+发表于玄说安全
+
+57 条评论
+?切换为时间排序
+写下你的评论...
+
+
+发布
+嘿嘿嘿
+嘿嘿嘿11 个月前
+太优秀了
+?赞
+?回复
+?踩
+?举报
+Zhongrui
+Zhongrui11 个月前
+太优秀了
+
+?赞
+?回复
+?踩
+?举报
+Tony Xiang
+Tony Xiang11 个月前
+VS Code可以用微软自己的msvc编译器吗？
+?1
+?回复
+?踩
+?举报
+ctuu
+ctuu (作者) 回复Tony Xiang11 个月前
+只要编译命令正确用什么都可以。。。
+
+似乎装了 VS 后 IntelliSense 就自带 VS 的 C++ 库
+
+可以看 cl 的语法：编译器命令行语法
+
+?赞
+?回复
+?踩
+?举报
+Tony Xiang
+Tony Xiang回复ctuu (作者) 11 个月前
+其实我一直不理解在windows下装vs code的意义在哪。反正vs也有社区版免费的。
+?赞
+?回复
+?踩
+?举报
+展开其他 3 条回复
+跳刀敌法
+跳刀敌法11 个月前
+mark!
+?赞
+?回复
+?踩
+?举报
+机犬
+机犬11 个月前
+内置终端输出太快也会漏显示，之前被坑到了??
+
+?2
+?回复
+?踩
+?举报
+董京林
+董京林10 个月前
+太优秀了
+?赞
+?回复
+?踩
+?举报
+maxint
+maxint10 个月前
+用cmake插件管理c++ 工程更好
+?赞
+?回复
+?踩
+?举报
+谌杨
+谌杨10 个月前
+我想推荐clion可以吗??
+?赞
+?回复
+?踩
+?举报
+Shakeel
+Shakeel10 个月前
+Mingw编译的是不是在linux下也可以编译？（我想问的就是在windows下是不是也可以用linux的相关库？）
+?赞
+?回复
+?踩
+?举报
+ctuu
+ctuu (作者) 回复Shakeel10 个月前
+不清楚，你可以试一下。。。
+
+?赞
+?回复
+?踩
+?举报
+code life
+code life10 个月前
+nice总于有人出这样的文章了
+?赞
+?回复
+?踩
+?举报
+Krasnaya
+Krasnaya10 个月前
+我个人发现最爽的是把方案1和方案3结合起来。
+
+用code runner编译，然后gdb调试运行。
+
+只要把launch配置到user settings里面，就可以在任意位置免配置编译运行。
+
+?7
+?回复
+?踩
+?举报
+Hercules Jack
+Hercules Jack9 个月前
+请问方法三可以设成用内置终端调试吗？
+
+?赞
+?回复
+?踩
+?举报
+ctuu
+ctuu (作者) 回复Hercules Jack9 个月前
+我也想…但是没找到方法 可能要换个插件什么的？
+?赞
+?回复
+?踩
+?举报
+ctuu
+ctuu (作者) 回复Hercules Jack4 个月前
+前几天 C/C++ 插件更新了，Windows 和 Linux 用户现在可以用内置终端调试了了
+
+?赞
+?回复
+?踩
+?举报
+WillowAndPoplar
+WillowAndPoplar7 个月前
+c++经常是多文件编译 有点无用
+
+?赞
+?回复
+?踩
+?举报
+ctuu
+ctuu (作者) 回复WillowAndPoplar7 个月前
+多文件还是用 cmake IDE 什么的比较好啊 刷 oj 用的话不会有多文件编译吧
+
+?1
+?回复
+?踩
+?举报
+Daisy
+Daisy5 个月前
+请问，第二方案中，keybinding.json 放在哪里？请具体点谢谢！
+
+?赞
+?回复
+?踩
+?举报
+ctuu
+ctuu (作者) 回复Daisy5 个月前
+窗口左下角齿轮有个「键盘快捷方式」，键位绑定就在那里设置的，具体内容已更新到文章中
+
+?赞
+?回复
+?踩
+?举报
+Kashionz
+Kashionz5 个月前
+請教一下，小的我使用方案二，但依照步驟用完後按下F10沒有任何反應
+
+已經有新建一個tasks.json和F10快捷鍵，想請作者指點一下，謝謝！
+
+?赞
+?回复
+?踩
+?举报
+ctuu
+ctuu (作者) 回复Kashionz5 个月前
+可以按 F1 输入 Run Test Task 以运行测试任务看有没有反应
+
+没有反应可能是没设到 F10 或者是笔记本有 FN 键？
+
+?赞
+?回复
+?踩
+?举报
+season
+season4 个月前
+一个工程有多个文件需要链接用vscode怎么配置
+
+?赞
+?回复
+?踩
+?举报
+ctuu
+ctuu (作者) 回复season4 个月前
+方案二 tasks.json - Build 把文件都加上去就像手动编译的命令一样；或者用 cmake等把 tasks.json 改成运行 cmake；或者有个答主的回答 bigporker：Visual Studio Code如何编写运行C、C++？
+
+?赞
+?回复
+?踩
+?举报
+李承东
+李承东4 个月前
+你好，我使用第三种方法时编译完成后弹不出黑框，而是一个错误如图，请问这是怎么回事
+
+
+?赞
+?回复
+?踩
+?举报
+ctuu
+ctuu (作者) 回复李承东4 个月前
+可能有多种原因：
+
+去具体文件夹看是否编译成功（编译问题？）
+如果编译成功，在命令行能否手动 GDB（GDB环境？）
+如果可以，在别的路径（比如非系统盘符或桌面）编写并编译是否会重现（权限问题？）
+launch.json 调用的 GDB 路径是否正确（多个 GDB ？）
+……（我没分析出来的原因）
+?1
+?回复
+?踩
+?举报
+李承东
+李承东回复ctuu (作者) 4 个月前
+嗯嗯，谢谢大神了，这个问题目前还没解决，但有您上面提供的三种方法我已经很感激了，之前在网上搜了好多关于vscode配置c++的内容，但是在我的本地都不好使，之后尝试用google搜索，第一个就是您的配置教程。现在我已经很满意了，能编译单文件就行了。再次谢谢您！
+
+?赞
+?回复
+?踩
+?举报
+李承东
+李承东4 个月前
+还有一个问题就是汉字输出乱码，请问怎么解决
+
+?赞
+?回复
+?踩
+?举报
+ctuu
+ctuu (作者) 回复李承东4 个月前
+刚刚
+
+汉字乱码应该是 cmd、PowerShell 的编码造成的，
+解决方案大概有四种：
+
+换终端模拟器
+编译时指定编码
+更改cmd、Powershell 默认编码 修改 PowerShell 代码页为 UTF-8 - SegmentFault
+更改系统默认编码 win10 配置系统默认utf-8编码
+我用的是第四种
+
+?1
+?回复
+?踩
+?举报
+李承东
+李承东回复ctuu (作者) 4 个月前
+我尝试了第四种，但是我的电脑系统区域设置里没有您提供的方法里那个beta选项，就这样吧，不输出汉字了，就当练练英文
+
+?赞
+?回复
+?踩
+?举报
+赵文林
+赵文林4 个月前
+太优秀了！实测，方案一可以成功——2018.10.26
+
+?赞
+?回复
+?踩
+?举报
+格子衬衫不适合我
+格子衬衫不适合我4 个月前
+大佬！可以问一个关于vscode c++配置的问题吗？我用的是方案二tasks，可是遇到了一个问题。每次按F10运行时都没有重新编译，也就是说每次运行的结果都是最初编译的结果。这就造成了一个问题：我之后无论怎么修改，它运行的结果仍是第一次编译时的结果。我想每次按F10都重新编译+运行，请问这样可以实现吗？谢谢大佬！
+
+?赞
+?回复
+?踩
+?举报
+ctuu
+ctuu (作者) 回复格子衬衫不适合我4 个月前
+你仔细看我方案二的 tasks 里有个 dependsOn，这个东西我在文章也解释了是实现先编译后运行效果的，就是说如果你把方案二的 tasks.json 完整的复制下来是可以先编译后运行的
+
+?赞
+?回复
+?踩
+?举报
+12下一页
+
+
+选择语言
